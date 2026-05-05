@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>复利计算器 — 让时间为你工作</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap"
+    rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Space Grotesk', 'sans-serif'],
+            body: ['Noto Sans SC', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --bg: #080c14;
+      --bg-card: rgba(255, 255, 255, 0.03);
+      --bg-card-hover: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.06);
+      --fg: #f0f0f0;
+      --muted: #6b7280;
+      --accent: #f59e0b;
+      --accent-dim: rgba(245, 158, 11, 0.15);
+      --green: #10b981;
+      --green-dim: rgba(16, 185, 129, 0.12);
+      --red: #ef4444;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Noto Sans SC', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* 背景光晕 */
+    .bg-glow {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .bg-glow::before {
+      content: '';
+      position: absolute;
+      top: -20%;
+      left: -10%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.08) 0%, transparent 70%);
+      animation: floatGlow 12s ease-in-out infinite;
+    }
+
+    .bg-glow::after {
+      content: '';
+      position: absolute;
+      bottom: -10%;
+      right: -10%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.06) 0%, transparent 70%);
+      animation: floatGlow 15s ease-in-out infinite reverse;
+    }
+
+    @keyframes floatGlow {
+
+      0%,
+      100% {
+        transform: translate(0, 0) scale(1);
+      }
+
+      33% {
+        transform: translate(60px, -40px) scale(1.1);
+      }
+
+      66% {
+        transform: translate(-30px, 50px) scale(0.95);
+      }
+    }
+
+    /* 网格背景 */
+    .grid-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    /* 卡片样式 */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    /* 输入框样式 */
+    .input-field {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--fg);
+      padding: 10px 14px;
+      font-size: 15px;
+      font-family: 'Space Grotesk', monospace;
+      font-weight: 500;
+      width: 100%;
+      transition: all 0.25s ease;
+      outline: none;
+    }
+
+    .input-field:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    .input-field::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+    }
+
+    /* 滑块样式 */
+    .range-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .range-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 16px rgba(245, 158, 11, 0.6);
+    }
+
+    .range-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+    }
+
+    /* 下拉选择框 */
+    .select-field {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--fg);
+      padding: 10px 14px;
+      font-size: 14px;
+      font-family: 'Noto Sans SC', sans-serif;
+      width: 100%;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      -webkit-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%236b7280'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+
+    .select-field:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    .select-field option {
+      background: #1a1f2e;
+      color: var(--fg);
+    }
+
+    /* 结果卡片 */
+    .result-card {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .result-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      border-radius: 16px 16px 0 0;
+    }
+
+    .result-card.gold::before {
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+
+    .result-card.green::before {
+      background: linear-gradient(90deg, transparent, var(--green), transparent);
+    }
+
+    .result-card.white::before {
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    }
+
+    /* 数字动画 */
+    .num-animate {
+      display: inline-block;
+      transition: transform 0.3s ease;
+    }
+
+    .num-animate.pop {
+      transform: scale(1.05);
+    }
+
+    /* 表格 */
+    .data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    .data-table thead th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(8, 12, 20, 0.95);
+      backdrop-filter: blur(10px);
+      z-index: 2;
+    }
+
+    .data-table tbody td {
+      padding: 10px 16px;
+      font-size: 13px;
+      font-family: 'Space Grotesk', monospace;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .data-table tbody tr {
+      transition: background 0.2s;
+    }
+
+    .data-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    /* 提示标签 */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    /* 滚动条 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* 入场动画 */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(24px);
+      animation: fadeUp 0.6s ease forwards;
+    }
+
+    @keyframes fadeUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* 脉冲点 */
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+      }
+
+      50% {
+        opacity: 0.7;
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+      }
+    }
+
+    /* 进度条动画 */
+    .bar-fill {
+      transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* 响应式 */
+    @media (max-width: 1024px) {
+      .main-grid {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .result-grid {
+        grid-template-columns: 1fr 1fr !important;
+      }
+    }
+
+    /* 减少动画偏好 */
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* 浮动粒子 */
+    .particle {
+      position: fixed;
+      width: 2px;
+      height: 2px;
+      background: rgba(245, 158, 11, 0.3);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 背景层 -->
+  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="grid-bg" aria-hidden="true"></div>
+  <div id="particles" aria-hidden="true"></div>
+
+  <!-- 主内容 -->
+  <div class="relative z-10">
+    <!-- 顶部导航 -->
+    <header class="fade-up" style="animation-delay: 0s;">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: var(--accent-dim);">
+            <i class="fa-solid fa-chart-line text-amber-400 text-sm"></i>
+          </div>
+          <span class="font-display font-semibold text-base tracking-tight">Compounder</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="pulse-dot"></div>
+          <span class="text-xs" style="color: var(--muted);">实时计算</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 标题区域 -->
+    <section class="fade-up max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-10" style="animation-delay: 0.1s;">
+      <h1 class="font-body font-black text-4xl sm:text-5xl leading-tight tracking-tight mb-3">
+        复利计算器
+      </h1>
+      <p class="text-base sm:text-lg max-w-xl" style="color: var(--muted); line-height: 1.7;">
+        爱因斯坦称复利为「世界第八大奇迹」。输入你的投资参数，<br class="hidden sm:block">直观感受时间与复利的力量。
+      </p>
+    </section>
+
+    <!-- 主计算区域 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 pb-8">
+      <div class="main-grid" style="display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start;">
+
+        <!-- 左侧：输入面板 -->
+        <div class="fade-up" style="animation-delay: 0.15s;">
+          <div class="card p-6 space-y-6">
+            <div class="flex items-center gap-2 mb-1">
+              <i class="fa-solid fa-sliders text-amber-400 text-xs"></i>
+              <span class="text-xs font-medium uppercase tracking-wider" style="color: var(--muted);">投资参数</span>
+            </div>
+
+            <!-- 初始本金 -->
+            <div>
+              <div class="flex justify-between items-baseline mb-2">
+                <label class="text-sm font-medium">初始本金</label>
+                <span class="text-xs" style="color: var(--muted);">元</span>
+              </div>
+              <input type="text" id="principal" class="input-field mb-2" value="100,000" inputmode="numeric"
+                aria-label="初始本金">
+              <input type="range" id="principalRange" class="range-slider" min="0" max="5000000" step="10000"
+                value="100000" aria-label="初始本金滑块">
+              <div class="flex justify-between text-xs mt-1" style="color: var(--muted);">
+                <span>0</span><span>500万</span>
+              </div>
+            </div>
+
+            <!-- 年利率 -->
+            <div>
+              <div class="flex justify-between items-baseline mb-2">
+                <label class="text-sm font-medium">年化收益率</label>
+                <span class="text-xs font-display font-semibold text-amber-400" id="rateDisplay">8.0%</span>
+              </div>
+              <input type="range" id="rateRange" class="range-slider" min="0" max="30" step="0.1" value="8"
+                aria-label="年化收益率滑块">
+              <div class="flex justify-between text-xs mt-1" style="color: var(--muted);">
+                <span>0%</span><span>30%</span>
+              </div>
+            </div>
+
+            <!-- 投资年限 -->
+            <div>
+              <div class="flex justify-between items-baseline mb-2">
+                <label class="text-sm font-medium">投资年限</label>
+                <span class="text-xs font-display font-semibold text-amber-400" id="yearsDisplay">20 年</span>
+              </div>
+              <input type="range" id="yearsRange" class="range-slider" min="1" max="50" step="1" value="20"
+                aria-label="投资年限滑块">
+              <div class="flex justify-between text-xs mt-1" style="color: var(--muted);">
+                <span>1年</span><span>50年</span>
+              </div>
+            </div>
+
+            <!-- 每月定投 -->
+            <div>
+              <div class="flex justify-between items-baseline mb-2">
+                <label class="text-sm font-medium">每月定投</label>
+                <span class="text-xs" style="color: var(--muted);">元</span>
+              </div>
+              <input type="text" id="monthly" class="input-field mb-2" value="2,000" inputmode="numeric"
+                aria-label="每月定投金额">
+              <input type="range" id="monthlyRange" class="range-slider" min="0" max="100000" step="500" value="2000"
+                aria-label="每月定投滑块">
+              <div class="flex justify-between text-xs mt-1" style="color: var(--muted);">
+                <span>0</span><span>10万</span>
+              </div>
+            </div>
+
+            <!-- 复利频率 -->
+            <div>
+              <div class="flex justify-between items-baseline mb-2">
+                <label class="text-sm font-medium">复利频率</label>
+              </div>
+              <select id="frequency" class="select-field" aria-label="复利频率">
+                <option value="12">每月复利</option>
+                <option value="4">每季复利</option>
+                <option value="2">每半年复利</option>
+                <option value="1" selected>每年复利</option>
+              </select>
+            </div>
+
+            <!-- 分隔线 -->
+            <div style="border-top: 1px solid var(--border);"></div>
+
+            <!-- 公式说明 -->
+            <div class="rounded-xl p-4"
+              style="background: rgba(245,158,11,0.04); border: 1px solid rgba(245,158,11,0.08);">
+              <p class="text-xs font-medium text-amber-400 mb-1">
+                <i class="fa-solid fa-lightbulb mr-1"></i>复利公式
+              </p>
+              <p class="font-display text-sm" style="color: rgba(255,255,255,0.6); line-height: 1.6;">
+                FV = P × (1 + r/n)<sup>n×t</sup> + PMT × [((1 + r/n)<sup>n×t</sup> - 1) / (r/n)]
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧：结果区域 -->
+        <div class="space-y-6">
+          <!-- 结果指标卡片 -->
+          <div class="fade-up result-grid"
+            style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; animation-delay: 0.2s;">
+            <div class="card result-card gold p-5">
+              <p class="text-xs font-medium mb-2" style="color: var(--muted);">最终总额</p>
+              <p class="font-display font-bold text-2xl text-amber-400 num-animate" id="totalAmount">--</p>
+            </div>
+            <div class="card result-card white p-5">
+              <p class="text-xs font-medium mb-2" style="color: var(--muted);">总投入</p>
+              <p class="font-display font-bold text-2xl num-animate" id="totalInvested">--</p>
+            </div>
+            <div class="card result-card green p-5">
+              <p class="text-xs font-medium mb-2" style="color: var(--muted);">总收益</p>
+              <p class="font-display font-bold text-2xl text-emerald-400 num-animate" id="totalEarnings">--</p>
+            </div>
+            <div class="card result-card green p-5">
+              <p class="text-xs font-medium mb-2" style="color: var(--muted);">收益倍数</p>
+              <p class="font-display font-bold text-2xl text-emerald-400 num-animate" id="totalMultiple">--</p>
+            </div>
+          </div>
+
+          <!-- 收益占比条 -->
+          <div class="fade-up card p-5" style="animation-delay: 0.25s;">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-medium" style="color: var(--muted);">本金 vs 收益构成</span>
+              <div class="flex items-center gap-4 text-xs">
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2.5 h-2.5 rounded-sm" style="background: rgba(255,255,255,0.25);"></span>
+                  <span style="color: var(--muted);">本金</span>
+                  <span class="font-display font-semibold" id="principalPercent" style="color: var(--fg);">--</span>
+                </span>
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2.5 h-2.5 rounded-sm" style="background: var(--green);"></span>
+                  <span style="color: var(--muted);">收益</span>
+                  <span class="font-display font-semibold" id="earningsPercent" style="color: var(--green);">--</span>
+                </span>
+              </div>
+            </div>
+            <div class="w-full h-3 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.06);">
+              <div class="h-full rounded-full bar-fill" id="barPrincipal"
+                style="background: rgba(255,255,255,0.2); width: 0%; float: left;"></div>
+              <div class="h-full rounded-full bar-fill" id="barEarnings"
+                style="background: linear-gradient(90deg, #059669, #10b981); width: 0%; float: left;"></div>
+            </div>
+          </div>
+
+          <!-- 图表区域 -->
+          <div class="fade-up card p-5" style="animation-delay: 0.3s;">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-chart-area text-amber-400 text-xs"></i>
+                <span class="text-sm font-medium">资产增长曲线</span>
+              </div>
+              <div class="flex gap-1" id="chartToggle">
+                <button class="tag active" style="background: var(--accent-dim); color: var(--accent);" data-mode="area"
+                  aria-label="面积图">
+                  <i class="fa-solid fa-chart-area text-xs"></i>
+                </button>
+                <button class="tag" style="background: rgba(255,255,255,0.04); color: var(--muted);" data-mode="bar"
+                  aria-label="柱状图">
+                  <i class="fa-solid fa-chart-column text-xs"></i>
+                </button>
+              </div>
+            </div>
+            <div style="position: relative; height: 320px;">
+              <canvas id="growthChart"></canvas>
+            </div>
+          </div>
+
+          <!-- 年度明细表 -->
+          <div class="fade-up card" style="animation-delay: 0.35s;">
+            <div class="flex items-center justify-between p-5 pb-3">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-table text-amber-400 text-xs"></i>
+                <span class="text-sm font-medium">年度明细</span>
+              </div>
+              <button id="toggleTable" class="tag"
+                style="background: rgba(255,255,255,0.04); color: var(--muted); cursor: pointer;" aria-label="展开/收起表格">
+                <span class="text-xs">展开</span>
+                <i class="fa-solid fa-chevron-down text-xs transition-transform" id="tableArrow"></i>
+              </button>
+            </div>
+            <div id="tableWrapper"
+              style="max-height: 0; overflow: hidden; transition: max-height 0.5s cubic-bezier(0.22, 1, 0.36, 1);">
+              <div style="max-height: 360px; overflow-y: auto;">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>年份</th>
+                      <th>年初余额</th>
+                      <th>本年投入</th>
+                      <th>本年收益</th>
+                      <th>年末余额</th>
+                      <th>累计收益率</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 底部 -->
+    <footer class="fade-up max-w-7xl mx-auto px-4 sm:px-6 py-8" style="animation-delay: 0.4s;">
+      <div style="border-top: 1px solid var(--border); padding-top: 24px;"
+        class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <p class="text-xs" style="color: var(--muted);">
+          仅供参考，不构成任何投资建议。实际收益受市场波动影响。
+        </p>
+        <p class="text-xs font-display" style="color: rgba(255,255,255,0.2);">
+          Compounder &copy; 2024
+        </p>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // ============ 工具函数 ============
+
+    // 格式化数字为千分位
+    function formatNum(n) {
+      if (n >= 1e8) return (n / 1e8).toFixed(2) + '亿';
+      if (n >= 1e4) return (n / 1e4).toFixed(2) + '万';
+      return n.toLocaleString('zh-CN', { maximumFractionDigits: 0 });
+    }
+
+    // 格式化为精确数字
+    function formatExact(n) {
+      return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // 解析输入的数字字符串（去除逗号）
+    function parseNum(str) {
+      const cleaned = str.replace(/,/g, '').replace(/[^\d.]/g, '');
+      const num = parseFloat(cleaned);
+      return isNaN(num) ? 0 : Math.max(0, num);
+    }
+
+    // 格式化输入框（加千分位）
+    function formatInput(value) {
+      const num = parseNum(value);
+      if (num === 0) return '0';
+      return Math.round(num).toLocaleString('zh-CN');
+    }
+
+    // ============ 浮动粒子 ============
+    function createParticles() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 20; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.top = Math.random() * 100 + '%';
+        p.style.opacity = Math.random() * 0.4 + 0.1;
+        p.style.width = p.style.height = (Math.random() * 2 + 1) + 'px';
+        const dur = Math.random() * 20 + 15;
+        const delay = Math.random() * -20;
+        p.style.animation = `floatGlow ${dur}s ease-in-out ${delay}s infinite`;
+        container.appendChild(p);
+      }
+    }
+    createParticles();
+
+    // ============ DOM 元素引用 ============
+    const principalInput = document.getElementById('principal');
+    const principalRange = document.getElementById('principalRange');
+    const rateRange = document.getElementById('rateRange');
+    const rateDisplay = document.getElementById('rateDisplay');
+    const yearsRange = document.getElementById('yearsRange');
+    const yearsDisplay = document.getElementById('yearsDisplay');
+    const monthlyInput = document.getElementById('monthly');
+    const monthlyRange = document.getElementById('monthlyRange');
+    const frequencySelect = document.getElementById('frequency');
+
+    const totalAmountEl = document.getElementById('totalAmount');
+    const totalInvestedEl = document.getElementById('totalInvested');
+    const totalEarningsEl = document.getElementById('totalEarnings');
+    const totalMultipleEl = document.getElementById('totalMultiple');
+    const principalPercentEl = document.getElementById('principalPercent');
+    const earningsPercentEl = document.getElementById('earningsPercent');
+    const barPrincipal = document.getElementById('barPrincipal');
+    const barEarnings = document.getElementById('barEarnings');
+    const tableBody = document.getElementById('tableBody');
+    const tableWrapper = document.getElementById('tableWrapper');
+    const tableArrow = document.getElementById('tableArrow');
+    const toggleTableBtn = document.getElementById('toggleTable');
+
+    // ============ 图表初始化 ============
+    const ctx = document.getElementById('growthChart').getContext('2d');
+    let chartMode = 'area';
+
+    const chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: '累计本金',
+            data: [],
+            backgroundColor: 'rgba(255, 255, 255, 0.12)',
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+            borderWidth: 1,
+            borderRadius: 4,
+            order: 2,
+            stack: 'stack0',
+          },
+          {
+            label: '累计收益',
+            data: [],
+            backgroundColor: 'rgba(16, 185, 129, 0.25)',
+            borderColor: 'rgba(16, 185, 129, 0.5)',
+            borderWidth: 1,
+            borderRadius: 4,
+            order: 2,
+            stack: 'stack0',
+          },
+          {
+            label: '总资产',
+            data: [],
+            type: 'line',
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245, 158, 11, 0.08)',
+            borderWidth: 2.5,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: '#f59e0b',
+            pointHoverBorderColor: '#fff',
+            pointHoverBorderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            order: 1,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            align: 'end',
+            labels: {
+              color: '#6b7280',
+              font: { size: 11, family: 'Noto Sans SC' },
+              boxWidth: 12,
+              boxHeight: 12,
+              borderRadius: 3,
+              useBorderRadius: true,
+              padding: 16,
+              filter: function (item) {
+                // 面积图模式隐藏堆叠柱
+                if (chartMode === 'area' && (item.datasetIndex === 0 || item.datasetIndex === 1)) return false;
+                return true;
+              }
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(10, 15, 26, 0.95)',
+            titleColor: '#f0f0f0',
+            bodyColor: '#9ca3af',
+            borderColor: 'rgba(255,255,255,0.08)',
+            borderWidth: 1,
+            cornerRadius: 10,
+            padding: 14,
+            titleFont: { size: 13, weight: '600', family: 'Noto Sans SC' },
+            bodyFont: { size: 12, family: 'Space Grotesk' },
+            displayColors: true,
+            boxWidth: 8,
+            boxHeight: 8,
+            boxPadding: 4,
+            callbacks: {
+              label: function (context) {
+                return context.dataset.label + '：' + formatExact(context.raw);
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false },
+            ticks: {
+              color: '#4b5563',
+              font: { size: 11, family: 'Space Grotesk' },
+              maxTicksLimit: 15,
+            },
+            border: { display: false }
+          },
+          y: {
+            grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false },
+            ticks: {
+              color: '#4b5563',
+              font: { size: 11, family: 'Space Grotesk' },
+              callback: function (val) { return formatNum(val); },
+              maxTicksLimit: 6,
+            },
+            border: { display: false }
+          }
+        },
+        animation: {
+          duration: 600,
+          easing: 'easeOutQuart'
+        }
+      }
+    });
+
+    // ============ 图表模式切换 ============
+    document.getElementById('chartToggle').addEventListener('click', function (e) {
+      const btn = e.target.closest('button[data-mode]');
+      if (!btn) return;
+      const mode = btn.dataset.mode;
+      if (mode === chartMode) return;
+      chartMode = mode;
+
+      // 更新按钮样式
+      this.querySelectorAll('button').forEach(b => {
+        b.style.background = 'rgba(255,255,255,0.04)';
+        b.style.color = 'var(--muted)';
+      });
+      btn.style.background = 'var(--accent-dim)';
+      btn.style.color = 'var(--accent)';
+
+      calculate();
+    });
+
+    // ============ 表格展开/收起 ============
+    let tableOpen = false;
+    toggleTableBtn.addEventListener('click', function () {
+      tableOpen = !tableOpen;
+      if (tableOpen) {
+        tableWrapper.style.maxHeight = tableWrapper.scrollHeight + 'px';
+        tableArrow.style.transform = 'rotate(180deg)';
+        this.querySelector('span').textContent = '收起';
+      } else {
+        tableWrapper.style.maxHeight = '0';
+        tableArrow.style.transform = 'rotate(0deg)';
+        this.querySelector('span').textContent = '展开';
+      }
+    });
+
+    // ============ 输入联动 ============
+
+    // 本金输入框 ↔ 滑块
+    principalInput.addEventListener('input', function () {
+      const num = parseNum(this.value);
+      principalRange.value = Math.min(num, 5000000);
+      // 实时格式化
+      const pos = this.selectionStart;
+      const formatted = formatInput(this.value);
+      this.value = formatted;
+      const diff = formatted.length - this.value.length;
+      this.setSelectionRange(pos + diff, pos + diff);
+      calculate();
+    });
+    principalInput.addEventListener('blur', function () {
+      this.value = formatInput(this.value);
+    });
+    principalRange.addEventListener('input', function () {
+      principalInput.value = formatNum(parseInt(this.value));
+      calculate();
+    });
+
+    // 利率滑块
+    rateRange.addEventListener('input', function () {
+      rateDisplay.textContent = parseFloat(this.value).toFixed(1) + '%';
+      calculate();
+    });
+
+    // 年限滑块
+    yearsRange.addEventListener('input', function () {
+      yearsDisplay.textContent = this.value + ' 年';
+      calculate();
+    });
+
+    // 每月定投输入框 ↔ 滑块
+    monthlyInput.addEventListener('input', function () {
+      const num = parseNum(this.value);
+      monthlyRange.value = Math.min(num, 100000);
+      const pos = this.selectionStart;
+      const formatted = formatInput(this.value);
+      this.value = formatted;
+      const diff = formatted.length - this.value.length;
+      this.setSelectionRange(pos + diff, pos + diff);
+      calculate();
+    });
+    monthlyInput.addEventListener('blur', function () {
+      this.value = formatInput(this.value);
+    });
+    monthlyRange.addEventListener('input', function () {
+      monthlyInput.value = formatNum(parseInt(this.value));
+      calculate();
+    });
+
+    // 复利频率
+    frequencySelect.addEventListener('change', calculate);
+
+    // ============ 核心计算 ============
+    function calculate() {
+      const P = parseNum(principalInput.value);       // 初始本金
+      const r = parseFloat(rateRange.value) / 100;   // 年利率
+      const t = parseInt(yearsRange.value);            // 年限
+      const PMT = parseNum(monthlyInput.value);        // 每月定投
+      const n = parseInt(frequencySelect.value);       // 复利频率
+
+      // 每期利率
+      const ratePerPeriod = r / n;
+      // 总期数
+      const totalPeriods = n * t;
+
+      // 计算最终金额
+      let FV;
+      if (ratePerPeriod === 0) {
+        // 零利率特殊情况
+        FV = P + PMT * 12 * t;
+      } else {
+        // 本金终值
+        const FV_principal = P * Math.pow(1 + ratePerPeriod, totalPeriods);
+        // 定投终值（每月投入 PMT，每期复利）
+        // 将每月投入转化为每期投入：每期包含 12/n 个月的投入
+        const PMT_per_period = PMT * (12 / n);
+        const FV_annuity = PMT_per_period * (Math.pow(1 + ratePerPeriod, totalPeriods) - 1) / ratePerPeriod;
+        FV = FV_principal + FV_annuity;
+      }
+
+      const totalInvested = P + PMT * 12 * t;
+      const totalEarnings = FV - totalInvested;
+      const multiple = totalInvested > 0 ? FV / totalInvested : 0;
+
+      // 更新结果数字（带弹跳动画）
+      animateValue(totalAmountEl, FV, formatNum);
+      animateValue(totalInvestedEl, totalInvested, formatNum);
+      animateValue(totalEarningsEl, totalEarnings, formatNum);
+      animateValue(totalMultipleEl, multiple, function (v) { return v.toFixed(2) + 'x'; });
+
+      // 更新占比条
+      const pPct = FV > 0 ? (totalInvested / FV * 100) : 0;
+      const ePct = FV > 0 ? (totalEarnings / FV * 100) : 0;
+      principalPercentEl.textContent = pPct.toFixed(1) + '%';
+      earningsPercentEl.textContent = ePct.toFixed(1) + '%';
+      barPrincipal.style.width = pPct + '%';
+      barEarnings.style.width = ePct + '%';
+
+      // 生成年度数据
+      const yearlyData = generateYearlyData(P, r, t, PMT, n);
+
+      // 更新图表
+      updateChart(yearlyData, FV);
+
+      // 更新表格
+      updateTable(yearlyData);
+    }
+
+    // 数字弹跳动画
+    function animateValue(el, value, formatter) {
+      el.textContent = formatter(value);
+      el.classList.add('pop');
+      setTimeout(() => el.classList.remove('pop'), 200);
+    }
+
+    // 生成逐年数据
+    function generateYearlyData(P, r, t, PMT, n) {
+      const data = [];
+      const ratePerPeriod = r / n;
+      const PMT_per_period = PMT * (12 / n);
+
+      let balance = P;
+      let cumInvested = P;
+
+      for (let year = 1; year <= t; year++) {
+        const startBalance = balance;
+        const yearInvest = PMT * 12;
+        let yearEarnings = 0;
+
+        // 逐期计算这一年
+        for (let period = 0; period < n; period++) {
+          const interest = balance * ratePerPeriod;
+          yearEarnings += interest;
+          balance += interest + PMT_per_period;
+        }
+
+        cumInvested += yearInvest;
+        const cumReturn = cumInvested > 0 ? (balance - cumInvested) / cumInvested * 100 : 0;
+
+        data.push({
+          year: year,
+          startBalance: startBalance,
+          yearInvest: yearInvest,
+          yearEarnings: yearEarnings,
+          endBalance: balance,
+          cumInvested: cumInvested,
+          cumEarnings: balance - cumInvested,
+          cumReturn: cumReturn,
+        });
+      }
+      return data;
+    }
+
+    // 更新图表
+    function updateChart(yearlyData, finalFV) {
+      const labels = yearlyData.map(d => '第' + d.year + '年');
+      const cumInvested = yearlyData.map(d => d.cumInvested);
+      const cumEarnings = yearlyData.map(d => d.cumEarnings);
+      const totalAssets = yearlyData.map(d => d.endBalance);
+
+      chart.data.labels = labels;
+
+      if (chartMode === 'area') {
+        // 面积图模式：隐藏柱状图，只显示折线
+        chart.data.datasets[0].data = [];
+        chart.data.datasets[1].data = [];
+        chart.data.datasets[2].data = totalAssets;
+        chart.data.datasets[2].fill = true;
+        chart.data.datasets[2].backgroundColor = createGradient(ctx, finalFV);
+        chart.data.datasets[2].borderColor = '#f59e0b';
+      } else {
+        // 柱状图模式：堆叠柱 + 折线
+        chart.data.datasets[0].data = cumInvested;
+        chart.data.datasets[1].data = cumEarnings;
+        chart.data.datasets[2].data = totalAssets;
+        chart.data.datasets[2].fill = false;
+        chart.data.datasets[2].backgroundColor = 'transparent';
+        chart.data.datasets[2].borderColor = '#f59e0b';
+      }
+
+      chart.update('none');
+      // 用 'none' 跳过动画以避免频繁计算时卡顿，但首次用默认
+    }
+
+    // 创建渐变色
+    function createGradient(ctx, maxVal) {
+      const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+      gradient.addColorStop(0, 'rgba(245, 158, 11, 0.15)');
+      gradient.addColorStop(0.5, 'rgba(245, 158, 11, 0.05)');
+      gradient.addColorStop(1, 'rgba(245, 158, 11, 0)');
+      return gradient;
+    }
+
+    // 更新表格
+    function updateTable(yearlyData) {
+      let html = '';
+      yearlyData.forEach(d => {
+        const returnColor = d.cumReturn >= 0 ? 'color: #10b981' : 'color: #ef4444';
+        html += `<tr>
+                    <td style="color: var(--fg); font-weight: 500;">第${d.year}年</td>
+                    <td>${formatExact(d.startBalance)}</td>
+                    <td>${formatExact(d.yearInvest)}</td>
+                    <td style="${returnColor}">${d.yearEarnings >= 0 ? '+' : ''}${formatExact(d.yearEarnings)}</td>
+                    <td style="color: var(--fg); font-weight: 600;">${formatExact(d.endBalance)}</td>
+                    <td style="${returnColor}">${d.cumReturn >= 0 ? '+' : ''}${d.cumReturn.toFixed(2)}%</td>
+                </tr>`;
+      });
+      tableBody.innerHTML = html;
+
+      // 如果表格已展开，更新高度
+      if (tableOpen) {
+        requestAnimationFrame(() => {
+          tableWrapper.style.maxHeight = tableWrapper.scrollHeight + 'px';
+        });
+      }
+    }
+
+    // ============ 初始计算 ============
+    calculate();
+
+    // ============ 键盘无障碍 ============
+    document.querySelectorAll('.range-slider').forEach(slider => {
+      slider.addEventListener('focus', function () {
+        this.style.outline = '2px solid var(--accent)';
+        this.style.outlineOffset = '4px';
+        this.style.borderRadius = '4px';
+      });
+      slider.addEventListener('blur', function () {
+        this.style.outline = 'none';
+      });
+    });
+  </script>
+</body>
+
+</html>
